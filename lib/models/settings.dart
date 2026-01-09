@@ -1,35 +1,51 @@
-class AppSettings {
-  String apiUrl;
+import 'package:hive/hive.dart';
+
+part 'settings.g.dart';
+
+@HiveType(typeId: 3)
+class AppSettings extends HiveObject {
+  @HiveField(0)
+  String apiEndpoint;
+
+  @HiveField(1)
   String apiKey;
-  String selectedModel;
-  String systemPrompt;
-  String userPrompt;
-  int backupReminderDays;
+
+  @HiveField(2)
+  String customPrompt;
+
+  @HiveField(3)
+  bool useBiometric;
+
+  @HiveField(4)
+  bool backupReminder;
+
+  @HiveField(5)
+  String? model;
 
   AppSettings({
-    this.apiUrl = 'https://api.openai.com/v1',
+    this.apiEndpoint = '',
     this.apiKey = '',
-    this.selectedModel = '',
-    this.systemPrompt = '你是一个专业的图片描述专家，请详细描述图片内容。',
-    this.userPrompt = '请用简洁的语言描述这张图片的内容，包括主体、场景、风格等。',
-    this.backupReminderDays = 14,
+    this.customPrompt = 'Describe this image in detail, focusing on the main subject, colors, composition, and any notable elements.',
+    this.useBiometric = false,
+    this.backupReminder = true,
+    this.model,
   });
 
-  Map<String, dynamic> toJson() => {
-    'apiUrl': apiUrl,
-    'apiKey': apiKey,
-    'selectedModel': selectedModel,
-    'systemPrompt': systemPrompt,
-    'userPrompt': userPrompt,
-    'backupReminderDays': backupReminderDays,
-  };
-
-  factory AppSettings.fromJson(Map<String, dynamic> json) => AppSettings(
-    apiUrl: json['apiUrl'] ?? 'https://api.openai.com/v1',
-    apiKey: json['apiKey'] ?? '',
-    selectedModel: json['selectedModel'] ?? '',
-    systemPrompt: json['systemPrompt'] ?? '你是一个专业的图片描述专家，请详细描述图片内容。',
-    userPrompt: json['userPrompt'] ?? '请用简洁的语言描述这张图片的内容，包括主体、场景、风格等。',
-    backupReminderDays: json['backupReminderDays'] ?? 14,
-  );
+  AppSettings copyWith({
+    String? apiEndpoint,
+    String? apiKey,
+    String? customPrompt,
+    bool? useBiometric,
+    bool? backupReminder,
+    String? model,
+  }) {
+    return AppSettings(
+      apiEndpoint: apiEndpoint ?? this.apiEndpoint,
+      apiKey: apiKey ?? this.apiKey,
+      customPrompt: customPrompt ?? this.customPrompt,
+      useBiometric: useBiometric ?? this.useBiometric,
+      backupReminder: backupReminder ?? this.backupReminder,
+      model: model ?? this.model,
+    );
+  }
 }

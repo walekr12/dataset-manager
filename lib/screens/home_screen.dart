@@ -196,7 +196,7 @@ class _HomeScreenState extends State<HomeScreen> {
                             Icon(
                               Icons.folder_open,
                               size: 80,
-                              color: Colors.grey.withValues(alpha: 0.5),
+                              color: Colors.grey.withOpacity(0.5),
                             ),
                             const SizedBox(height: 16),
                             Text(
@@ -205,7 +205,7 @@ class _HomeScreenState extends State<HomeScreen> {
                                   : 'No categories found',
                               style: TextStyle(
                                 fontSize: 18,
-                                color: Colors.grey.withValues(alpha: 0.7),
+                                color: Colors.grey.withOpacity(0.7),
                               ),
                             ),
                             if (_searchQuery.isEmpty) ...[
@@ -213,7 +213,7 @@ class _HomeScreenState extends State<HomeScreen> {
                               Text(
                                 'Tap + to create your first category',
                                 style: TextStyle(
-                                  color: Colors.grey.withValues(alpha: 0.5),
+                                  color: Colors.grey.withOpacity(0.5),
                                 ),
                               ),
                             ],
@@ -353,7 +353,7 @@ class _CategoryCard extends StatelessWidget {
                           '$itemCount items',
                           style: TextStyle(
                             fontSize: 12,
-                            color: Colors.grey.withValues(alpha: 0.7),
+                            color: Colors.grey.withOpacity(0.7),
                           ),
                         ),
                       ],

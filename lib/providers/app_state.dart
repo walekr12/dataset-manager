@@ -1,9 +1,8 @@
 import 'package:flutter/material.dart';
+import 'package:hive_flutter/hive_flutter.dart';
 import '../models/category.dart';
 import '../models/media_item.dart';
 import '../models/settings.dart';
-import '../services/storage_service.dart';
-import '../services/encryption_service.dart';
 
 class AppState extends ChangeNotifier {
   bool _isUnlocked = false;
@@ -14,6 +13,9 @@ class AppState extends ChangeNotifier {
   List<MediaItem> _mediaItems = [];
   AppSettings _settings = AppSettings();
   DateTime? _lastBackup;
+  
+  // Hive box
+  Box? _settingsBox;
   
   // Getters
   bool get isUnlocked => _isUnlocked;
@@ -30,12 +32,106 @@ class AppState extends ChangeNotifier {
   }
   
   Future<void> _loadData() async {
-    // 从本地存储加载数据
-    _pin = await StorageService.getPin() ?? '123456';
-    _categories = await StorageService.getCategories();
-    _settings = await StorageService.getSettings();
-    _lastBackup = await StorageService.getLastBackupDate();
-    notifyListeners();
+    try {
+      // 打开Hive box
+      _settingsBox = await Hive.openBox('settings');
+      
+      // 加载PIN
+      _pin = _settingsBox?.get('pin', defaultValue: '123456') ?? '123456';
+      
+      // 加载设置
+      final savedSettings = _settingsBox?.get('appSettings');
+      if (savedSettings != null && savedSettings is Map) {
+        _settings = AppSettings(
+          apiEndpoint: savedSettings['apiEndpoint'] ?? '',
+          apiKey: savedSettings['apiKey'] ?? '',
+          customPrompt: savedSettings['customPrompt'] ?? '',
+          useBiometric: savedSettings['useBiometric'] ?? false,
+          backupReminder: savedSettings['backupReminder'] ?? true,
+          backupReminderDays: savedSettings['backupReminderDays'] ?? 7,
+        );
+      }
+      
+      // 加载类别
+      final savedCategories = _settingsBox?.get('categories');
+      if (savedCategories != null && savedCategories is List) {
+        _categories = (savedCategories as List).map((c) => Category(
+          id: c['id'] ?? '',
+          name: c['name'] ?? '',
+          createdAt: DateTime.tryParse(c['createdAt'] ?? '') ?? DateTime.now(),
+          imageCount: c['imageCount'] ?? 0,
+          videoCount: c['videoCount'] ?? 0,
+          taggedCount: c['taggedCount'] ?? 0,
+        )).toList();
+      }
+      
+      // 加载媒体项
+      final savedMedia = _settingsBox?.get('mediaItems');
+      if (savedMedia != null && savedMedia is List) {
+        _mediaItems = (savedMedia as List).map((m) => MediaItem(
+          id: m['id'] ?? '',
+          categoryId: m['categoryId'] ?? '',
+          originalPath: m['originalPath'] ?? '',
+          encryptedPath: m['encryptedPath'] ?? '',
+          type: m['type'] == 'video' ? MediaType.video : MediaType.image,
+          width: m['width'] ?? 0,
+          height: m['height'] ?? 0,
+          aiTag: m['aiTag'],
+          createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
+        )).toList();
+      }
+      
+      // 加载备份日期
+      final backupStr = _settingsBox?.get('lastBackup');
+      if (backupStr != null) {
+        _lastBackup = DateTime.tryParse(backupStr);
+      }
+      
+      notifyListeners();
+    } catch (e) {
+      debugPrint('Error loading data: $e');
+    }
+  }
+  
+  // 保存类别到Hive
+  Future<void> _saveCategories() async {
+    final categoriesData = _categories.map((c) => {
+      'id': c.id,
+      'name': c.name,
+      'createdAt': c.createdAt.toIso8601String(),
+      'imageCount': c.imageCount,
+      'videoCount': c.videoCount,
+      'taggedCount': c.taggedCount,
+    }).toList();
+    await _settingsBox?.put('categories', categoriesData);
+  }
+  
+  // 保存媒体项到Hive
+  Future<void> _saveMediaItems() async {
+    final mediaData = _mediaItems.map((m) => {
+      'id': m.id,
+      'categoryId': m.categoryId,
+      'originalPath': m.originalPath,
+      'encryptedPath': m.encryptedPath,
+      'type': m.type == MediaType.video ? 'video' : 'image',
+      'width': m.width,
+      'height': m.height,
+      'aiTag': m.aiTag,
+      'createdAt': m.createdAt.toIso8601String(),
+    }).toList();
+    await _settingsBox?.put('mediaItems', mediaData);
+  }
+  
+  // 保存设置到Hive
+  Future<void> _saveSettings() async {
+    await _settingsBox?.put('appSettings', {
+      'apiEndpoint': _settings.apiEndpoint,
+      'apiKey': _settings.apiKey,
+      'customPrompt': _settings.customPrompt,
+      'useBiometric': _settings.useBiometric,
+      'backupReminder': _settings.backupReminder,
+      'backupReminderDays': _settings.backupReminderDays,
+    });
   }
   
   // PIN验证
@@ -53,10 +149,15 @@ class AppState extends ChangeNotifier {
     notifyListeners();
   }
   
-  Future<void> changePin(String newPin) async {
+  // 设置新PIN
+  Future<void> setPin(String newPin) async {
     _pin = newPin;
-    await StorageService.savePin(newPin);
+    await _settingsBox?.put('pin', newPin);
     notifyListeners();
+  }
+  
+  Future<void> changePin(String newPin) async {
+    await setPin(newPin);
   }
   
   // 类别管理
@@ -67,104 +168,165 @@ class AppState extends ChangeNotifier {
       createdAt: DateTime.now(),
     );
     _categories.add(category);
-    await StorageService.saveCategories(_categories);
+    await _saveCategories();
     notifyListeners();
+  }
+  
+  Future<void> renameCategory(String id, String newName) async {
+    final index = _categories.indexWhere((c) => c.id == id);
+    if (index != -1) {
+      _categories[index] = Category(
+        id: _categories[index].id,
+        name: newName,
+        createdAt: _categories[index].createdAt,
+        imageCount: _categories[index].imageCount,
+        videoCount: _categories[index].videoCount,
+        taggedCount: _categories[index].taggedCount,
+      );
+      await _saveCategories();
+      notifyListeners();
+    }
   }
   
   Future<void> deleteCategory(String id) async {
     _categories.removeWhere((c) => c.id == id);
-    await StorageService.saveCategories(_categories);
     // 同时删除该类别下的所有媒体文件
-    await StorageService.deleteMediaByCategory(id);
+    _mediaItems.removeWhere((m) => m.categoryId == id);
+    await _saveCategories();
+    await _saveMediaItems();
     notifyListeners();
   }
   
   void setCurrentCategory(Category category) {
     _currentCategory = category;
-    _loadMediaItems(category.id);
     notifyListeners();
+  }
+  
+  // 获取指定类别的媒体项
+  List<MediaItem> getMediaItemsByCategory(String categoryId) {
+    return _mediaItems.where((m) => m.categoryId == categoryId).toList();
   }
   
   // 媒体管理
-  Future<void> _loadMediaItems(String categoryId) async {
-    _mediaItems = await StorageService.getMediaItems(categoryId);
-    notifyListeners();
-  }
-  
   void setCurrentMedia(MediaItem media) {
     _currentMedia = media;
     notifyListeners();
   }
   
-  Future<void> addMediaItem(MediaItem item) async {
+  Future<void> addMediaItem({
+    required String categoryId,
+    required String originalPath,
+    required String encryptedPath,
+    required MediaType type,
+    int width = 0,
+    int height = 0,
+  }) async {
+    final item = MediaItem(
+      id: DateTime.now().millisecondsSinceEpoch.toString(),
+      categoryId: categoryId,
+      originalPath: originalPath,
+      encryptedPath: encryptedPath,
+      type: type,
+      width: width,
+      height: height,
+      createdAt: DateTime.now(),
+    );
+    
     _mediaItems.insert(0, item);
-    await StorageService.saveMediaItem(item);
     
     // 更新类别计数
-    if (_currentCategory != null) {
-      final index = _categories.indexWhere((c) => c.id == _currentCategory!.id);
-      if (index != -1) {
-        if (item.type == MediaType.image) {
-          _categories[index].imageCount++;
-        } else {
-          _categories[index].videoCount++;
-        }
-        await StorageService.saveCategories(_categories);
+    final catIndex = _categories.indexWhere((c) => c.id == categoryId);
+    if (catIndex != -1) {
+      if (type == MediaType.image) {
+        _categories[catIndex].imageCount++;
+      } else {
+        _categories[catIndex].videoCount++;
       }
+      await _saveCategories();
     }
+    
+    await _saveMediaItems();
     notifyListeners();
   }
   
   Future<void> deleteMediaItem(String id) async {
-    final item = _mediaItems.firstWhere((m) => m.id == id);
-    _mediaItems.removeWhere((m) => m.id == id);
-    await StorageService.deleteMediaItem(id);
+    final itemIndex = _mediaItems.indexWhere((m) => m.id == id);
+    if (itemIndex == -1) return;
+    
+    final item = _mediaItems[itemIndex];
+    _mediaItems.removeAt(itemIndex);
     
     // 更新类别计数
-    if (_currentCategory != null) {
-      final index = _categories.indexWhere((c) => c.id == _currentCategory!.id);
-      if (index != -1) {
-        if (item.type == MediaType.image) {
-          _categories[index].imageCount--;
-        } else {
-          _categories[index].videoCount--;
-        }
-        await StorageService.saveCategories(_categories);
+    final catIndex = _categories.indexWhere((c) => c.id == item.categoryId);
+    if (catIndex != -1) {
+      if (item.type == MediaType.image) {
+        _categories[catIndex].imageCount--;
+      } else {
+        _categories[catIndex].videoCount--;
       }
+      await _saveCategories();
     }
+    
+    await _saveMediaItems();
     notifyListeners();
   }
   
-  Future<void> updateMediaTag(String id, String tag) async {
+  Future<void> updateMediaItemTag(String id, String tag) async {
     final index = _mediaItems.indexWhere((m) => m.id == id);
     if (index != -1) {
-      _mediaItems[index].tag = tag;
-      _mediaItems[index].isTagged = true;
-      await StorageService.saveMediaItem(_mediaItems[index]);
+      // 创建新的MediaItem替换旧的（因为字段可能是final）
+      final oldItem = _mediaItems[index];
+      _mediaItems[index] = MediaItem(
+        id: oldItem.id,
+        categoryId: oldItem.categoryId,
+        originalPath: oldItem.originalPath,
+        encryptedPath: oldItem.encryptedPath,
+        type: oldItem.type,
+        width: oldItem.width,
+        height: oldItem.height,
+        aiTag: tag,
+        createdAt: oldItem.createdAt,
+      );
       
-      // 更新类别打标计数
-      if (_currentCategory != null) {
-        final catIndex = _categories.indexWhere((c) => c.id == _currentCategory!.id);
+      // 如果之前没有tag，更新类别打标计数
+      if (oldItem.aiTag == null || oldItem.aiTag!.isEmpty) {
+        final catIndex = _categories.indexWhere((c) => c.id == oldItem.categoryId);
         if (catIndex != -1) {
           _categories[catIndex].taggedCount++;
-          await StorageService.saveCategories(_categories);
+          await _saveCategories();
         }
       }
+      
+      await _saveMediaItems();
+      notifyListeners();
     }
-    notifyListeners();
   }
   
-  // 设置管理
-  Future<void> updateSettings(AppSettings newSettings) async {
-    _settings = newSettings;
-    await StorageService.saveSettings(newSettings);
+  // 设置管理 - 支持命名参数
+  Future<void> updateSettings({
+    String? apiEndpoint,
+    String? apiKey,
+    String? customPrompt,
+    bool? useBiometric,
+    bool? backupReminder,
+    int? backupReminderDays,
+  }) async {
+    _settings = AppSettings(
+      apiEndpoint: apiEndpoint ?? _settings.apiEndpoint,
+      apiKey: apiKey ?? _settings.apiKey,
+      customPrompt: customPrompt ?? _settings.customPrompt,
+      useBiometric: useBiometric ?? _settings.useBiometric,
+      backupReminder: backupReminder ?? _settings.backupReminder,
+      backupReminderDays: backupReminderDays ?? _settings.backupReminderDays,
+    );
+    await _saveSettings();
     notifyListeners();
   }
   
   // 备份管理
   Future<void> updateLastBackup() async {
     _lastBackup = DateTime.now();
-    await StorageService.saveLastBackupDate(_lastBackup!);
+    await _settingsBox?.put('lastBackup', _lastBackup!.toIso8601String());
     notifyListeners();
   }
   
@@ -174,5 +336,19 @@ class AppState extends ChangeNotifier {
     
     final daysSinceBackup = DateTime.now().difference(_lastBackup!).inDays;
     return daysSinceBackup >= _settings.backupReminderDays;
+  }
+  
+  // 清除所有数据
+  Future<void> clearAllData() async {
+    _categories.clear();
+    _mediaItems.clear();
+    _settings = AppSettings();
+    _lastBackup = null;
+    _pin = '123456';
+    
+    await _settingsBox?.clear();
+    await _settingsBox?.put('pin', '123456');
+    
+    notifyListeners();
   }
 }

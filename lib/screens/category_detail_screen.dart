@@ -209,21 +209,21 @@ class _CategoryDetailScreenState extends State<CategoryDetailScreen> {
                       Icon(
                         Icons.photo_library_outlined,
                         size: 80,
-                        color: Colors.grey.withValues(alpha: 0.5),
+                        color: Colors.grey.withOpacity( 0.5),
                       ),
                       const SizedBox(height: 16),
                       Text(
                         'No items yet',
                         style: TextStyle(
                           fontSize: 18,
-                          color: Colors.grey.withValues(alpha: 0.7),
+                          color: Colors.grey.withOpacity( 0.7),
                         ),
                       ),
                       const SizedBox(height: 8),
                       Text(
                         'Tap + to import images or videos',
                         style: TextStyle(
-                          color: Colors.grey.withValues(alpha: 0.5),
+                          color: Colors.grey.withOpacity( 0.5),
                         ),
                       ),
                     ],
@@ -320,7 +320,7 @@ class _MediaThumbnail extends StatelessWidget {
             child: Container(
               padding: const EdgeInsets.symmetric(horizontal: 4, vertical: 2),
               decoration: BoxDecoration(
-                color: Colors.black.withValues(alpha: 0.7),
+                color: Colors.black.withOpacity( 0.7),
                 borderRadius: BorderRadius.circular(4),
               ),
               child: Text(
@@ -340,7 +340,7 @@ class _MediaThumbnail extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.black.withValues(alpha: 0.7),
+                  color: Colors.black.withOpacity( 0.7),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -358,7 +358,7 @@ class _MediaThumbnail extends StatelessWidget {
               child: Container(
                 padding: const EdgeInsets.all(4),
                 decoration: BoxDecoration(
-                  color: Colors.green.withValues(alpha: 0.8),
+                  color: Colors.green.withOpacity( 0.8),
                   shape: BoxShape.circle,
                 ),
                 child: const Icon(
@@ -377,7 +377,7 @@ class _MediaThumbnail extends StatelessWidget {
                 decoration: BoxDecoration(
                   color: isSelected
                       ? Theme.of(context).colorScheme.primary
-                      : Colors.black.withValues(alpha: 0.5),
+                      : Colors.black.withOpacity( 0.5),
                   shape: BoxShape.circle,
                 ),
                 child: Icon(

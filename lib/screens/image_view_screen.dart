@@ -261,7 +261,7 @@ class _ImageViewScreenState extends State<ImageViewScreen> {
           Icon(
             Icons.video_file,
             size: 80,
-            color: Colors.grey.withValues(alpha: 0.5),
+            color: Colors.grey.withOpacity( 0.5),
           ),
           const SizedBox(height: 16),
           const Text(
@@ -301,7 +301,7 @@ class _ImageViewScreenState extends State<ImageViewScreen> {
         Icon(
           Icons.broken_image,
           size: 80,
-          color: Colors.grey.withValues(alpha: 0.5),
+          color: Colors.grey.withOpacity( 0.5),
         ),
         const SizedBox(height: 16),
         const Text(

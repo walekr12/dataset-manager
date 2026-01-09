@@ -1,25 +1,10 @@
-import 'package:hive/hive.dart';
-
-part 'category.g.dart';
-
-@HiveType(typeId: 0)
-class Category extends HiveObject {
-  @HiveField(0)
+/// Category model for organizing media items
+class Category {
   final String id;
-  
-  @HiveField(1)
   final String name;
-  
-  @HiveField(2)
   int imageCount;
-  
-  @HiveField(3)
   int videoCount;
-  
-  @HiveField(4)
   int taggedCount;
-  
-  @HiveField(5)
   final DateTime createdAt;
 
   Category({

@@ -6,8 +6,6 @@ import 'package:hive_flutter/hive_flutter.dart';
 import 'providers/app_state.dart';
 import 'screens/lock_screen.dart';
 import 'screens/home_screen.dart';
-import 'screens/category_detail_screen.dart';
-import 'screens/image_view_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 
@@ -41,8 +39,6 @@ class SecureDatasetApp extends StatelessWidget {
         routes: {
           '/lock': (context) => const LockScreen(),
           '/home': (context) => const HomeScreen(),
-          '/category': (context) => const CategoryDetailScreen(),
-          '/image': (context) => const ImageViewScreen(),
           '/settings': (context) => const SettingsScreen(),
         },
       ),
