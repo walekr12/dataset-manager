@@ -1,42 +1,19 @@
-import 'package:hive/hive.dart';
-
-part 'media_item.g.dart';
-
-@HiveType(typeId: 1)
+// 媒体类型枚举
 enum MediaType {
-  @HiveField(0)
   image,
-  @HiveField(1)
   video,
 }
 
-@HiveType(typeId: 2)
-class MediaItem extends HiveObject {
-  @HiveField(0)
+// 媒体项模型（无Hive依赖）
+class MediaItem {
   final String id;
-
-  @HiveField(1)
   final String categoryId;
-
-  @HiveField(2)
   final String originalPath;
-
-  @HiveField(3)
   final String encryptedPath;
-
-  @HiveField(4)
   final MediaType type;
-
-  @HiveField(5)
   final int width;
-
-  @HiveField(6)
   final int height;
-
-  @HiveField(7)
-  String? aiTag;
-
-  @HiveField(8)
+  final String? aiTag;
   final DateTime createdAt;
 
   MediaItem({

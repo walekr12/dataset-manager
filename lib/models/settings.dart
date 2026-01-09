@@ -1,25 +1,11 @@
-import 'package:hive/hive.dart';
-
-part 'settings.g.dart';
-
-@HiveType(typeId: 3)
-class AppSettings extends HiveObject {
-  @HiveField(0)
+// 应用设置模型（无Hive依赖）
+class AppSettings {
   String apiEndpoint;
-
-  @HiveField(1)
   String apiKey;
-
-  @HiveField(2)
   String customPrompt;
-
-  @HiveField(3)
   bool useBiometric;
-
-  @HiveField(4)
   bool backupReminder;
-
-  @HiveField(5)
+  int backupReminderDays;  // 添加这个字段
   String? model;
 
   AppSettings({
@@ -28,6 +14,7 @@ class AppSettings extends HiveObject {
     this.customPrompt = 'Describe this image in detail, focusing on the main subject, colors, composition, and any notable elements.',
     this.useBiometric = false,
     this.backupReminder = true,
+    this.backupReminderDays = 7,
     this.model,
   });
 
@@ -37,6 +24,7 @@ class AppSettings extends HiveObject {
     String? customPrompt,
     bool? useBiometric,
     bool? backupReminder,
+    int? backupReminderDays,
     String? model,
   }) {
     return AppSettings(
@@ -45,6 +33,7 @@ class AppSettings extends HiveObject {
       customPrompt: customPrompt ?? this.customPrompt,
       useBiometric: useBiometric ?? this.useBiometric,
       backupReminder: backupReminder ?? this.backupReminder,
+      backupReminderDays: backupReminderDays ?? this.backupReminderDays,
       model: model ?? this.model,
     );
   }
