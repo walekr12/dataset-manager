@@ -1,0 +1,61 @@
+name: secure_dataset
+description: 加密数据集管理App - 安全存储和AI打标您的图片视频数据集
+publish_to: 'none'
+version: 1.0.0+1
+
+environment:
+  sdk: '>=3.0.0 <4.0.0'
+
+dependencies:
+  flutter:
+    sdk: flutter
+  
+  # 状态管理
+  provider: ^6.1.1
+  
+  # 本地存储
+  hive: ^2.2.3
+  hive_flutter: ^1.1.0
+  path_provider: ^2.1.1
+  
+  # 安全存储
+  flutter_secure_storage: ^9.0.0
+  encrypt: ^5.0.3
+  
+  # 图片和视频处理
+  image_picker: ^1.0.4
+  photo_view: ^0.14.0
+  video_player: ^2.8.1
+  video_thumbnail: ^0.5.3
+  
+  # 文件压缩
+  archive: ^3.4.9
+  
+  # 网络请求
+  dio: ^5.4.0
+  
+  # UI组件
+  flutter_staggered_grid_view: ^0.7.0
+  cached_network_image: ^3.3.0
+  
+  # 权限管理
+  permission_handler: ^11.1.0
+  
+  # 生物识别
+  local_auth: ^2.1.8
+  
+  # 分享
+  share_plus: ^7.2.1
+
+dev_dependencies:
+  flutter_test:
+    sdk: flutter
+  flutter_lints: ^3.0.1
+  hive_generator: ^2.0.1
+  build_runner: ^2.4.7
+
+flutter:
+  uses-material-design: true
+  
+  assets:
+    - assets/images/
