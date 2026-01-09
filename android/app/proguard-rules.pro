@@ -15,3 +15,7 @@
 
 # Biometric
 -keep class androidx.biometric.** { *; }
+
+# Play Core (required for Flutter split APK)
+-dontwarn com.google.android.play.core.**
+-keep class com.google.android.play.core.** { *; }
