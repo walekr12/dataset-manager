@@ -30,8 +30,9 @@ android {
         release {
             // Signing with debug keys for now
             signingConfig = signingConfigs.getByName("debug")
-            isMinifyEnabled = true
-            isShrinkResources = true
+            // 暂时禁用代码混淆以排查闪退问题
+            isMinifyEnabled = false
+            isShrinkResources = false
             proguardFiles(
                 getDefaultProguardFile("proguard-android-optimize.txt"),
                 "proguard-rules.pro"
