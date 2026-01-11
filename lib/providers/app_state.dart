@@ -13,6 +13,8 @@ class AppState extends ChangeNotifier {
   List<MediaItem> _mediaItems = [];
   AppSettings _settings = AppSettings();
   DateTime? _lastBackup;
+  bool _isLoading = true;
+  String? _loadError;
   
   // Hive box
   Box? _settingsBox;
@@ -26,112 +28,182 @@ class AppState extends ChangeNotifier {
   List<MediaItem> get mediaItems => _mediaItems;
   AppSettings get settings => _settings;
   DateTime? get lastBackup => _lastBackup;
+  bool get isLoading => _isLoading;
+  String? get loadError => _loadError;
   
   AppState() {
-    _loadData();
+    // 使用Future.microtask确保在构造函数完成后再执行异步操作
+    Future.microtask(() => _loadData());
   }
   
   Future<void> _loadData() async {
     try {
-      // 打开Hive box
-      _settingsBox = await Hive.openBox('settings');
+      _isLoading = true;
+      _loadError = null;
+      
+      // 打开Hive box，添加重试机制
+      for (int attempt = 0; attempt < 3; attempt++) {
+        try {
+          if (Hive.isBoxOpen('settings')) {
+            _settingsBox = Hive.box('settings');
+          } else {
+            _settingsBox = await Hive.openBox('settings');
+          }
+          break;
+        } catch (e) {
+          debugPrint('Hive open attempt $attempt failed: $e');
+          if (attempt == 2) rethrow;
+          await Future.delayed(const Duration(milliseconds: 100));
+        }
+      }
       
       // 加载PIN
       _pin = _settingsBox?.get('pin', defaultValue: '123456') ?? '123456';
       
       // 加载设置
-      final savedSettings = _settingsBox?.get('appSettings');
-      if (savedSettings != null && savedSettings is Map) {
-        _settings = AppSettings(
-          apiEndpoint: savedSettings['apiEndpoint'] ?? '',
-          apiKey: savedSettings['apiKey'] ?? '',
-          customPrompt: savedSettings['customPrompt'] ?? '',
-          useBiometric: savedSettings['useBiometric'] ?? false,
-          backupReminder: savedSettings['backupReminder'] ?? true,
-          backupReminderDays: savedSettings['backupReminderDays'] ?? 7,
-        );
+      try {
+        final savedSettings = _settingsBox?.get('appSettings');
+        if (savedSettings != null && savedSettings is Map) {
+          _settings = AppSettings(
+            apiEndpoint: savedSettings['apiEndpoint'] ?? '',
+            apiKey: savedSettings['apiKey'] ?? '',
+            customPrompt: savedSettings['customPrompt'] ?? '',
+            useBiometric: savedSettings['useBiometric'] ?? false,
+            backupReminder: savedSettings['backupReminder'] ?? true,
+            backupReminderDays: savedSettings['backupReminderDays'] ?? 7,
+          );
+        }
+      } catch (e) {
+        debugPrint('Error loading settings: $e');
       }
       
       // 加载类别
-      final savedCategories = _settingsBox?.get('categories');
-      if (savedCategories != null && savedCategories is List) {
-        _categories = (savedCategories as List).map((c) => Category(
-          id: c['id'] ?? '',
-          name: c['name'] ?? '',
-          createdAt: DateTime.tryParse(c['createdAt'] ?? '') ?? DateTime.now(),
-          imageCount: c['imageCount'] ?? 0,
-          videoCount: c['videoCount'] ?? 0,
-          taggedCount: c['taggedCount'] ?? 0,
-        )).toList();
+      try {
+        final savedCategories = _settingsBox?.get('categories');
+        if (savedCategories != null && savedCategories is List) {
+          _categories = [];
+          for (var c in savedCategories) {
+            try {
+              if (c is Map) {
+                _categories.add(Category(
+                  id: c['id']?.toString() ?? '',
+                  name: c['name']?.toString() ?? '',
+                  createdAt: DateTime.tryParse(c['createdAt']?.toString() ?? '') ?? DateTime.now(),
+                  imageCount: (c['imageCount'] as num?)?.toInt() ?? 0,
+                  videoCount: (c['videoCount'] as num?)?.toInt() ?? 0,
+                  taggedCount: (c['taggedCount'] as num?)?.toInt() ?? 0,
+                ));
+              }
+            } catch (e) {
+              debugPrint('Error parsing category: $e');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error loading categories: $e');
       }
       
       // 加载媒体项
-      final savedMedia = _settingsBox?.get('mediaItems');
-      if (savedMedia != null && savedMedia is List) {
-        _mediaItems = (savedMedia as List).map((m) => MediaItem(
-          id: m['id'] ?? '',
-          categoryId: m['categoryId'] ?? '',
-          originalPath: m['originalPath'] ?? '',
-          encryptedPath: m['encryptedPath'] ?? '',
-          type: m['type'] == 'video' ? MediaType.video : MediaType.image,
-          width: m['width'] ?? 0,
-          height: m['height'] ?? 0,
-          aiTag: m['aiTag'],
-          createdAt: DateTime.tryParse(m['createdAt'] ?? '') ?? DateTime.now(),
-        )).toList();
+      try {
+        final savedMedia = _settingsBox?.get('mediaItems');
+        if (savedMedia != null && savedMedia is List) {
+          _mediaItems = [];
+          for (var m in savedMedia) {
+            try {
+              if (m is Map) {
+                _mediaItems.add(MediaItem(
+                  id: m['id']?.toString() ?? '',
+                  categoryId: m['categoryId']?.toString() ?? '',
+                  originalPath: m['originalPath']?.toString() ?? '',
+                  encryptedPath: m['encryptedPath']?.toString() ?? '',
+                  type: m['type'] == 'video' ? MediaType.video : MediaType.image,
+                  width: (m['width'] as num?)?.toInt() ?? 0,
+                  height: (m['height'] as num?)?.toInt() ?? 0,
+                  aiTag: m['aiTag']?.toString(),
+                  createdAt: DateTime.tryParse(m['createdAt']?.toString() ?? '') ?? DateTime.now(),
+                ));
+              }
+            } catch (e) {
+              debugPrint('Error parsing media item: $e');
+            }
+          }
+        }
+      } catch (e) {
+        debugPrint('Error loading media items: $e');
       }
       
       // 加载备份日期
-      final backupStr = _settingsBox?.get('lastBackup');
-      if (backupStr != null) {
-        _lastBackup = DateTime.tryParse(backupStr);
+      try {
+        final backupStr = _settingsBox?.get('lastBackup');
+        if (backupStr != null) {
+          _lastBackup = DateTime.tryParse(backupStr.toString());
+        }
+      } catch (e) {
+        debugPrint('Error loading backup date: $e');
       }
       
+      _isLoading = false;
       notifyListeners();
-    } catch (e) {
+    } catch (e, s) {
       debugPrint('Error loading data: $e');
+      debugPrint('Stack trace: $s');
+      _loadError = e.toString();
+      _isLoading = false;
+      notifyListeners();
     }
   }
   
   // 保存类别到Hive
   Future<void> _saveCategories() async {
-    final categoriesData = _categories.map((c) => {
-      'id': c.id,
-      'name': c.name,
-      'createdAt': c.createdAt.toIso8601String(),
-      'imageCount': c.imageCount,
-      'videoCount': c.videoCount,
-      'taggedCount': c.taggedCount,
-    }).toList();
-    await _settingsBox?.put('categories', categoriesData);
+    try {
+      final categoriesData = _categories.map((c) => {
+        'id': c.id,
+        'name': c.name,
+        'createdAt': c.createdAt.toIso8601String(),
+        'imageCount': c.imageCount,
+        'videoCount': c.videoCount,
+        'taggedCount': c.taggedCount,
+      }).toList();
+      await _settingsBox?.put('categories', categoriesData);
+    } catch (e) {
+      debugPrint('Error saving categories: $e');
+    }
   }
   
   // 保存媒体项到Hive
   Future<void> _saveMediaItems() async {
-    final mediaData = _mediaItems.map((m) => {
-      'id': m.id,
-      'categoryId': m.categoryId,
-      'originalPath': m.originalPath,
-      'encryptedPath': m.encryptedPath,
-      'type': m.type == MediaType.video ? 'video' : 'image',
-      'width': m.width,
-      'height': m.height,
-      'aiTag': m.aiTag,
-      'createdAt': m.createdAt.toIso8601String(),
-    }).toList();
-    await _settingsBox?.put('mediaItems', mediaData);
+    try {
+      final mediaData = _mediaItems.map((m) => {
+        'id': m.id,
+        'categoryId': m.categoryId,
+        'originalPath': m.originalPath,
+        'encryptedPath': m.encryptedPath,
+        'type': m.type == MediaType.video ? 'video' : 'image',
+        'width': m.width,
+        'height': m.height,
+        'aiTag': m.aiTag,
+        'createdAt': m.createdAt.toIso8601String(),
+      }).toList();
+      await _settingsBox?.put('mediaItems', mediaData);
+    } catch (e) {
+      debugPrint('Error saving media items: $e');
+    }
   }
   
   // 保存设置到Hive
   Future<void> _saveSettings() async {
-    await _settingsBox?.put('appSettings', {
-      'apiEndpoint': _settings.apiEndpoint,
-      'apiKey': _settings.apiKey,
-      'customPrompt': _settings.customPrompt,
-      'useBiometric': _settings.useBiometric,
-      'backupReminder': _settings.backupReminder,
-      'backupReminderDays': _settings.backupReminderDays,
-    });
+    try {
+      await _settingsBox?.put('appSettings', {
+        'apiEndpoint': _settings.apiEndpoint,
+        'apiKey': _settings.apiKey,
+        'customPrompt': _settings.customPrompt,
+        'useBiometric': _settings.useBiometric,
+        'backupReminder': _settings.backupReminder,
+        'backupReminderDays': _settings.backupReminderDays,
+      });
+    } catch (e) {
+      debugPrint('Error saving settings: $e');
+    }
   }
   
   // PIN验证
@@ -152,7 +224,11 @@ class AppState extends ChangeNotifier {
   // 设置新PIN
   Future<void> setPin(String newPin) async {
     _pin = newPin;
-    await _settingsBox?.put('pin', newPin);
+    try {
+      await _settingsBox?.put('pin', newPin);
+    } catch (e) {
+      debugPrint('Error saving PIN: $e');
+    }
     notifyListeners();
   }
   
@@ -326,7 +402,11 @@ class AppState extends ChangeNotifier {
   // 备份管理
   Future<void> updateLastBackup() async {
     _lastBackup = DateTime.now();
-    await _settingsBox?.put('lastBackup', _lastBackup!.toIso8601String());
+    try {
+      await _settingsBox?.put('lastBackup', _lastBackup!.toIso8601String());
+    } catch (e) {
+      debugPrint('Error saving backup date: $e');
+    }
     notifyListeners();
   }
   
@@ -346,8 +426,12 @@ class AppState extends ChangeNotifier {
     _lastBackup = null;
     _pin = '123456';
     
-    await _settingsBox?.clear();
-    await _settingsBox?.put('pin', '123456');
+    try {
+      await _settingsBox?.clear();
+      await _settingsBox?.put('pin', '123456');
+    } catch (e) {
+      debugPrint('Error clearing data: $e');
+    }
     
     notifyListeners();
   }

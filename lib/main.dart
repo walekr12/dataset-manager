@@ -10,22 +10,35 @@ import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() async {
-  // 捕获所有未处理的异常
-  runZonedGuarded(() async {
+void main() {
+  // 使用runZonedGuarded捕获所有未处理的异常
+  runZonedGuarded(() {
+    _runApp();
+  }, (error, stackTrace) {
+    debugPrint('Uncaught error: $error');
+    debugPrint('Stack trace: $stackTrace');
+  });
+}
+
+Future<void> _runApp() async {
+  try {
     WidgetsFlutterBinding.ensureInitialized();
     
     // 捕获Flutter框架错误
     FlutterError.onError = (FlutterErrorDetails details) {
       FlutterError.presentError(details);
       debugPrint('FlutterError: ${details.exception}');
+      debugPrint('FlutterError stack: ${details.stack}');
     };
     
+    // 初始化Hive - 必须在runApp之前完成
     try {
-      // 初始化Hive
       await Hive.initFlutter();
-    } catch (e) {
+      debugPrint('Hive initialized successfully');
+    } catch (e, s) {
       debugPrint('Hive init error: $e');
+      debugPrint('Hive init stack: $s');
+      // 即使Hive失败也继续运行应用
     }
     
     // 设置状态栏样式
@@ -35,10 +48,18 @@ void main() async {
     ));
     
     runApp(const SecureDatasetApp());
-  }, (error, stackTrace) {
-    debugPrint('Uncaught error: $error');
-    debugPrint('Stack trace: $stackTrace');
-  });
+  } catch (e, s) {
+    debugPrint('App startup error: $e');
+    debugPrint('App startup stack: $s');
+    // 显示错误页面
+    runApp(MaterialApp(
+      home: Scaffold(
+        body: Center(
+          child: Text('应用启动失败: $e', style: const TextStyle(color: Colors.red)),
+        ),
+      ),
+    ));
+  }
 }
 
 class SecureDatasetApp extends StatelessWidget {

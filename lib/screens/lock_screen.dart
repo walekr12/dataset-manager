@@ -14,9 +14,47 @@ class LockScreen extends StatefulWidget {
 class _LockScreenState extends State<LockScreen> {
   String _enteredPin = '';
   bool _hasError = false;
+  bool _biometricsAvailable = false;
   final LocalAuthentication _localAuth = LocalAuthentication();
 
+  @override
+  void initState() {
+    super.initState();
+    _checkBiometrics();
+  }
+
+  Future<void> _checkBiometrics() async {
+    try {
+      // 检查设备是否支持生物识别
+      final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
+      final canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+      
+      if (canAuthenticate) {
+        // 检查是否有已注册的生物识别
+        final availableBiometrics = await _localAuth.getAvailableBiometrics();
+        if (mounted) {
+          setState(() {
+            _biometricsAvailable = availableBiometrics.isNotEmpty;
+          });
+        }
+      }
+    } catch (e) {
+      debugPrint('Biometrics check error: $e');
+      // 如果检查失败，默认不显示指纹按钮
+      if (mounted) {
+        setState(() {
+          _biometricsAvailable = false;
+        });
+      }
+    }
+  }
+
   Future<void> _authenticateWithBiometrics() async {
+    if (!_biometricsAvailable) {
+      _showToast('设备不支持指纹识别');
+      return;
+    }
+    
     try {
       final authenticated = await _localAuth.authenticate(
         localizedReason: '使用指纹解锁SecureDataset',
@@ -29,6 +67,7 @@ class _LockScreenState extends State<LockScreen> {
         _unlock();
       }
     } catch (e) {
+      debugPrint('Biometric auth error: $e');
       _showToast('指纹验证失败');
     }
   }
@@ -161,12 +200,17 @@ class _LockScreenState extends State<LockScreen> {
     String? text;
     IconData? icon;
     VoidCallback? onPressed;
+    bool isDisabled = false;
 
     if (row < 3) {
       text = (row * 3 + col + 1).toString();
       onPressed = () => _onNumberPressed(text!);
     } else {
-      if (col == 0) { icon = Icons.fingerprint; onPressed = _authenticateWithBiometrics; }
+      if (col == 0) { 
+        icon = Icons.fingerprint; 
+        onPressed = _biometricsAvailable ? _authenticateWithBiometrics : null;
+        isDisabled = !_biometricsAvailable;
+      }
       else if (col == 1) { text = '0'; onPressed = () => _onNumberPressed('0'); }
       else { icon = Icons.backspace_outlined; onPressed = _onBackspace; }
     }
@@ -182,7 +226,7 @@ class _LockScreenState extends State<LockScreen> {
           alignment: Alignment.center,
           child: text != null
               ? Text(text, style: const TextStyle(fontSize: 28, fontWeight: FontWeight.w500, color: AppTheme.textPrimary))
-              : Icon(icon, size: 28, color: AppTheme.textPrimary),
+              : Icon(icon, size: 28, color: isDisabled ? AppTheme.textSecondary : AppTheme.textPrimary),
         ),
       ),
     );
