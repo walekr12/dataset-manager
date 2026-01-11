@@ -77,4 +77,7 @@ app.js
 
 # Debug log
 debug.log
-"app-release.apk"  
+
+# APK files
+*.apk
+secure-dataset-apk/
