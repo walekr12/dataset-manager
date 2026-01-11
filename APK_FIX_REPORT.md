@@ -1,133 +1,83 @@
-# APK闪退问题修复报告
+# APK闪退问题修复报告 v2
 
 ## 问题描述
 APK虽然打包成功，但是安装后打开会闪退。
 
 ---
 
-## 诊断发现的问题
+## 第二次诊断发现的问题 (2026/1/11)
 
-### 1. 缺少 `path` 依赖包
-**文件**: `pubspec.yaml`
+### 1. main.dart 异步初始化顺序问题
+**问题**: `runZonedGuarded` 中调用异步函数 `_runApp()` 时没有正确等待，导致初始化顺序混乱。
 
-**问题**: `lib/services/storage_service.dart` 使用了 `import 'package:path/path.dart' as path;`，但是 `pubspec.yaml` 中没有声明 `path` 依赖。
+**修复**: 
+- 将 `WidgetsFlutterBinding.ensureInitialized()` 移到 `runZonedGuarded` 之前
+- 在 `main()` 中预先打开 Hive settings box
+- 简化初始化流程，确保顺序执行
 
-**修复**: 在 `pubspec.yaml` 的 dependencies 中添加：
-```yaml
-path: ^1.8.3
-```
-
----
-
-### 2. ProGuard混淆规则不完整
-**文件**: `android/app/proguard-rules.pro`
-
-**问题**: 原有的ProGuard规则只保护了基本的Flutter类，缺少对以下库的保护：
-- Hive 数据库
-- flutter_secure_storage
-- local_auth (生物识别)
-- permission_handler
-- image_picker
-- video_player
-- dio HTTP客户端
-- 等等...
-
-**修复**: 添加完整的ProGuard规则，保护所有使用的第三方库类：
-```proguard
-# Hive database
--keep class hive.** { *; }
--keep class * extends hive.TypeAdapter { *; }
-
-# Flutter Secure Storage
--keep class com.it_nomads.fluttersecurestorage.** { *; }
-
-# Local Auth (Biometric)
--keep class androidx.biometric.** { *; }
--keep class io.flutter.plugins.localauth.** { *; }
-
-# Permission Handler
--keep class com.baseflow.permissionhandler.** { *; }
-
-# ... 以及更多
-```
-
----
-
-### 3. 暂时禁用代码混淆
-**文件**: `android/app/build.gradle.kts`
-
-**问题**: Release构建启用了 `isMinifyEnabled = true` 和 `isShrinkResources = true`，可能会错误地移除必要的代码。
-
-**修复**: 暂时禁用代码混淆以排查问题：
-```kotlin
-buildTypes {
-    release {
-        signingConfig = signingConfigs.getByName("debug")
-        // 暂时禁用代码混淆以排查闪退问题
-        isMinifyEnabled = false
-        isShrinkResources = false
-        proguardFiles(...)
-    }
+```dart
+void main() async {
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  FlutterError.onError = ...;
+  
+  runZonedGuarded(() async {
+    await _initializeApp();  // 初始化Hive并打开box
+    runApp(const SecureDatasetApp());
+  }, ...);
 }
 ```
 
----
+### 2. AppState 与 Hive Box 竞争条件
+**问题**: `AppState` 在构造函数中尝试打开 Hive box，但此时 box 可能尚未在 main.dart 中打开完成，导致竞争条件。
 
-### 4. 添加全局错误处理
-**文件**: `lib/main.dart`
+**修复**: 
+- `main.dart` 中预先打开 settings box
+- `AppState._loadData()` 中优先使用已打开的 box，而不是重新打开
+- 添加更多防护性检查
 
-**问题**: 没有捕获初始化过程中的异常，导致任何初始化错误都会导致闪退。
-
-**修复**: 使用 `runZonedGuarded` 包裹整个应用，捕获所有未处理的异常：
 ```dart
-void main() async {
-  runZonedGuarded(() async {
-    WidgetsFlutterBinding.ensureInitialized();
-    
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-      debugPrint('FlutterError: ${details.exception}');
-    };
-    
-    try {
-      await Hive.initFlutter();
-    } catch (e) {
-      debugPrint('Hive init error: $e');
-    }
-    
-    // ...
-    runApp(const SecureDatasetApp());
-  }, (error, stackTrace) {
-    debugPrint('Uncaught error: $error');
+// 获取已经在main.dart中打开的Hive box
+if (Hive.isBoxOpen('settings')) {
+  _settingsBox = Hive.box('settings');
+} else {
+  _settingsBox = await Hive.openBox('settings');
+}
+```
+
+### 3. LockScreen 生物识别初始化时机
+**问题**: `_checkBiometrics()` 在 `initState()` 中直接调用，可能在 widget 完全构建之前执行异步操作。
+
+**修复**: 使用 `addPostFrameCallback` 延迟执行生物识别检查，并添加多层 try-catch 防护。
+
+```dart
+@override
+void initState() {
+  super.initState();
+  WidgetsBinding.instance.addPostFrameCallback((_) {
+    _checkBiometrics();
   });
 }
 ```
 
 ---
 
-## 修复后的构建结果
+## 之前的修复 (保留)
 
-✅ **GitHub Actions 构建成功**
-- Run ID: 20893113392
-- 耗时: 8分9秒
-- 状态: completed success
-
----
-
-## 后续建议
-
-1. **测试APK**: 下载新构建的APK进行安装测试
-2. **如果APK工作正常**: 可以逐步重新启用代码混淆
-3. **如果仍有问题**: 需要在实机上使用 `adb logcat` 查看具体崩溃日志
+### 4. 缺少 `path` 依赖包 ✅ 已修复
+### 5. ProGuard混淆规则完善 ✅ 已修复
+### 6. 代码混淆已禁用 ✅ 已修复
 
 ---
 
-## 下载APK
+## 修改的文件
 
-可以通过以下命令下载构建好的APK:
-```bash
-cd e:\xunlei\dataset
-gh run download 20893113392 -n secure-dataset-apk
-```
+1. `lib/main.dart` - 修复异步初始化顺序
+2. `lib/providers/app_state.dart` - 修复Hive box竞争条件
+3. `lib/screens/lock_screen.dart` - 修复生物识别初始化时机
 
-或访问: https://github.com/walekr12/dataset-manager/actions/runs/20893113392
+---
+
+## 下一步
+
+提交代码到GitHub，触发Actions重新构建APK。

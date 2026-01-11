@@ -10,56 +10,48 @@ import 'screens/home_screen.dart';
 import 'screens/settings_screen.dart';
 import 'theme/app_theme.dart';
 
-void main() {
+void main() async {
+  // 确保Flutter绑定在任何异步操作之前初始化
+  WidgetsFlutterBinding.ensureInitialized();
+  
+  // 捕获Flutter框架错误
+  FlutterError.onError = (FlutterErrorDetails details) {
+    FlutterError.presentError(details);
+    debugPrint('FlutterError: ${details.exception}');
+  };
+  
   // 使用runZonedGuarded捕获所有未处理的异常
-  runZonedGuarded(() {
-    _runApp();
+  runZonedGuarded(() async {
+    await _initializeApp();
+    runApp(const SecureDatasetApp());
   }, (error, stackTrace) {
     debugPrint('Uncaught error: $error');
     debugPrint('Stack trace: $stackTrace');
   });
 }
 
-Future<void> _runApp() async {
+Future<void> _initializeApp() async {
   try {
-    WidgetsFlutterBinding.ensureInitialized();
-    
-    // 捕获Flutter框架错误
-    FlutterError.onError = (FlutterErrorDetails details) {
-      FlutterError.presentError(details);
-      debugPrint('FlutterError: ${details.exception}');
-      debugPrint('FlutterError stack: ${details.stack}');
-    };
-    
     // 初始化Hive - 必须在runApp之前完成
-    try {
-      await Hive.initFlutter();
-      debugPrint('Hive initialized successfully');
-    } catch (e, s) {
-      debugPrint('Hive init error: $e');
-      debugPrint('Hive init stack: $s');
-      // 即使Hive失败也继续运行应用
+    await Hive.initFlutter();
+    debugPrint('Hive initialized successfully');
+    
+    // 预先打开settings box，确保后续使用时已经就绪
+    if (!Hive.isBoxOpen('settings')) {
+      await Hive.openBox('settings');
+      debugPrint('Settings box opened successfully');
     }
-    
-    // 设置状态栏样式
-    SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
-      statusBarColor: Colors.transparent,
-      statusBarIconBrightness: Brightness.light,
-    ));
-    
-    runApp(const SecureDatasetApp());
   } catch (e, s) {
-    debugPrint('App startup error: $e');
-    debugPrint('App startup stack: $s');
-    // 显示错误页面
-    runApp(MaterialApp(
-      home: Scaffold(
-        body: Center(
-          child: Text('应用启动失败: $e', style: const TextStyle(color: Colors.red)),
-        ),
-      ),
-    ));
+    debugPrint('Hive init error: $e');
+    debugPrint('Hive init stack: $s');
+    // 即使Hive失败也继续运行应用
   }
+  
+  // 设置状态栏样式
+  SystemChrome.setSystemUIOverlayStyle(const SystemUiOverlayStyle(
+    statusBarColor: Colors.transparent,
+    statusBarIconBrightness: Brightness.light,
+  ));
 }
 
 class SecureDatasetApp extends StatelessWidget {

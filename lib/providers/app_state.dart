@@ -41,20 +41,20 @@ class AppState extends ChangeNotifier {
       _isLoading = true;
       _loadError = null;
       
-      // 打开Hive box，添加重试机制
-      for (int attempt = 0; attempt < 3; attempt++) {
-        try {
-          if (Hive.isBoxOpen('settings')) {
-            _settingsBox = Hive.box('settings');
-          } else {
-            _settingsBox = await Hive.openBox('settings');
-          }
-          break;
-        } catch (e) {
-          debugPrint('Hive open attempt $attempt failed: $e');
-          if (attempt == 2) rethrow;
-          await Future.delayed(const Duration(milliseconds: 100));
+      // 获取已经在main.dart中打开的Hive box
+      try {
+        if (Hive.isBoxOpen('settings')) {
+          _settingsBox = Hive.box('settings');
+          debugPrint('Using already opened settings box');
+        } else {
+          // 如果box未打开（异常情况），尝试打开它
+          _settingsBox = await Hive.openBox('settings');
+          debugPrint('Opened settings box in AppState');
         }
+      } catch (e) {
+        debugPrint('Hive box error: $e');
+        // 如果Hive完全失败，使用null并在后续操作中检查
+        _settingsBox = null;
       }
       
       // 加载PIN

@@ -20,22 +20,44 @@ class _LockScreenState extends State<LockScreen> {
   @override
   void initState() {
     super.initState();
-    _checkBiometrics();
+    // 延迟检查生物识别，确保widget完全构建
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _checkBiometrics();
+    });
   }
 
   Future<void> _checkBiometrics() async {
+    // 默认不可用，只有成功检测后才启用
+    if (!mounted) return;
+    
     try {
       // 检查设备是否支持生物识别
-      final canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
-      final canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+      bool canAuthenticateWithBiometrics = false;
+      bool canAuthenticate = false;
       
-      if (canAuthenticate) {
+      try {
+        canAuthenticateWithBiometrics = await _localAuth.canCheckBiometrics;
+      } catch (e) {
+        debugPrint('canCheckBiometrics error: $e');
+      }
+      
+      try {
+        canAuthenticate = canAuthenticateWithBiometrics || await _localAuth.isDeviceSupported();
+      } catch (e) {
+        debugPrint('isDeviceSupported error: $e');
+      }
+      
+      if (canAuthenticate && mounted) {
         // 检查是否有已注册的生物识别
-        final availableBiometrics = await _localAuth.getAvailableBiometrics();
-        if (mounted) {
-          setState(() {
-            _biometricsAvailable = availableBiometrics.isNotEmpty;
-          });
+        try {
+          final availableBiometrics = await _localAuth.getAvailableBiometrics();
+          if (mounted) {
+            setState(() {
+              _biometricsAvailable = availableBiometrics.isNotEmpty;
+            });
+          }
+        } catch (e) {
+          debugPrint('getAvailableBiometrics error: $e');
         }
       }
     } catch (e) {
