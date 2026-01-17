@@ -40,6 +40,10 @@ jobs:
         run: |
           npx cap add android
 
+      - name: Fix Kotlin version conflict
+        run: |
+          echo 'configurations.all { resolutionStrategy { force "org.jetbrains.kotlin:kotlin-stdlib:1.9.22"; force "org.jetbrains.kotlin:kotlin-stdlib-jdk7:1.9.22"; force "org.jetbrains.kotlin:kotlin-stdlib-jdk8:1.9.22" } }' >> android/app/build.gradle
+
       - name: Build Android APK
         run: |
           cd android
