@@ -1,7 +1,7 @@
 {
   "appId": "com.datasetmanager.app",
   "appName": "Dataset Manager",
-  "webDir": ".",
+  "webDir": "www",
   "server": {
     "androidScheme": "https"
   },

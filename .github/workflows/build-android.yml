@@ -29,6 +29,13 @@ jobs:
           npm install
           npm install @capacitor/core @capacitor/cli @capacitor/android
 
+      - name: Prepare web directory
+        run: |
+          mkdir -p www
+          cp index.html www/
+          cp -r src www/
+          cp -r styles www/
+
       - name: Initialize Capacitor Android
         run: |
           npx cap add android
