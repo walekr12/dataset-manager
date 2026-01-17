@@ -1,0 +1,246 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>🔒 Dataset Manager - 加密数据集管理</title>
+    <link rel="stylesheet" href="styles/main.css">
+    <link rel="stylesheet" href="styles/grid.css">
+    <link rel="stylesheet" href="styles/modal.css">
+</head>
+<body>
+    <!-- Password Setup/Login Modal -->
+    <div id="passwordModal" class="modal active">
+        <div class="modal-content">
+            <h2 id="passwordModalTitle">设置主密码</h2>
+            <p id="passwordModalDesc">请设置一个强密码来保护您的数据集</p>
+            <input type="password" id="passwordInput" placeholder="输入密码" autocomplete="off">
+            <input type="password" id="passwordConfirmInput" placeholder="确认密码" autocomplete="off" style="display: none;">
+            <div class="modal-actions">
+                <button id="passwordSubmitBtn" class="btn btn-primary">确认</button>
+            </div>
+            <div id="passwordError" class="error-message"></div>
+        </div>
+    </div>
+
+    <!-- Main Application -->
+    <div id="app" class="app-container" style="display: none;">
+        <!-- Header -->
+        <header class="app-header">
+            <div class="header-left">
+                <h1>🔒 Dataset Manager</h1>
+                <select id="categoryFilter" class="category-dropdown">
+                    <option value="all">全部类别</option>
+                </select>
+            </div>
+            <div class="header-right">
+                <button id="importBtn" class="btn btn-primary">
+                    <span>📁</span> 导入文件
+                </button>
+                <button id="settingsBtn" class="btn btn-secondary">
+                    <span>⚙️</span> 设置
+                </button>
+                <button id="lockBtn" class="btn btn-secondary">
+                    <span>🔒</span> 锁定
+                </button>
+            </div>
+        </header>
+
+        <!-- Main Content -->
+        <div class="main-content">
+            <!-- Sidebar -->
+            <aside class="sidebar">
+                <div class="sidebar-header">
+                    <h3>类别</h3>
+                    <button id="newCategoryBtn" class="btn-icon" title="新建类别">+</button>
+                </div>
+                <ul id="categoryList" class="category-list">
+                    <li class="category-item active" data-id="all">
+                        <span class="category-icon">📁</span>
+                        <span class="category-name">全部</span>
+                        <span class="category-count">0</span>
+                    </li>
+                </ul>
+
+                <div class="sidebar-footer">
+                    <button id="aiBatchTagBtn" class="btn btn-primary btn-block">
+                        <span>🏷️</span> AI批量打标
+                    </button>
+                    <button id="batchDeleteBtn" class="btn btn-danger btn-block">
+                        <span>🗑️</span> 批量删除
+                    </button>
+                </div>
+            </aside>
+
+            <!-- Content Area -->
+            <main class="content-area">
+                <div id="gridContainer" class="grid-container">
+                    <!-- Grid items will be dynamically inserted here -->
+                </div>
+                <div id="emptyState" class="empty-state">
+                    <div class="empty-icon">📦</div>
+                    <h3>暂无数据</h3>
+                    <p>点击"导入文件"开始添加图片或视频</p>
+                </div>
+            </main>
+        </div>
+    </div>
+
+    <!-- Settings Modal -->
+    <div id="settingsModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2>设置</h2>
+                <button class="modal-close" data-modal="settingsModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="settings-tabs">
+                    <button class="tab-btn active" data-tab="aiConfig">AI配置</button>
+                    <button class="tab-btn" data-tab="general">通用设置</button>
+                </div>
+
+                <!-- AI Configuration Tab -->
+                <div id="aiConfigTab" class="tab-content active">
+                    <h3>AI模型配置</h3>
+                    <div class="form-group">
+                        <label>API URL</label>
+                        <input type="text" id="aiApiUrl" placeholder="https://api.openai.com/v1">
+                    </div>
+                    <div class="form-group">
+                        <label>API Key</label>
+                        <div class="input-with-toggle">
+                            <input type="password" id="aiApiKey" placeholder="sk-...">
+                            <button class="toggle-visibility" data-target="aiApiKey">👁️</button>
+                        </div>
+                    </div>
+                    <div class="form-group">
+                        <label>模型名称</label>
+                        <input type="text" id="aiModel" placeholder="gpt-4o">
+                    </div>
+                    <div class="form-group">
+                        <label>默认提示词</label>
+                        <textarea id="aiDefaultPrompt" rows="4" placeholder="请描述这张图片中的内容，包括主要对象、场景、颜色和氛围。"></textarea>
+                    </div>
+                    <div class="form-actions">
+                        <button id="testAIConnectionBtn" class="btn btn-secondary">测试连接</button>
+                        <button id="saveAIConfigBtn" class="btn btn-primary">保存配置</button>
+                    </div>
+                    <div id="aiConfigStatus" class="status-message"></div>
+                </div>
+
+                <!-- General Settings Tab -->
+                <div id="generalTab" class="tab-content">
+                    <h3>通用设置</h3>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="autoDeleteOriginal">
+                            导入后自动删除原文件
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>
+                            <input type="checkbox" id="encryptFiles" checked>
+                            加密存储文件内容
+                        </label>
+                    </div>
+                    <div class="form-group">
+                        <label>缩略图质量 (0.1-1.0)</label>
+                        <input type="range" id="thumbnailQuality" min="0.1" max="1.0" step="0.1" value="0.7">
+                        <span id="thumbnailQualityValue">0.7</span>
+                    </div>
+                    <div class="form-actions">
+                        <button id="clearAllDataBtn" class="btn btn-danger">清除所有数据</button>
+                        <button id="exportDataBtn" class="btn btn-secondary">导出数据</button>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Media Detail Modal -->
+    <div id="mediaDetailModal" class="modal">
+        <div class="modal-content modal-large">
+            <div class="modal-header">
+                <h2 id="mediaDetailTitle">媒体详情</h2>
+                <button class="modal-close" data-modal="mediaDetailModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="media-detail-container">
+                    <div class="media-preview">
+                        <img id="mediaDetailImage" style="display: none;">
+                        <video id="mediaDetailVideo" controls style="display: none;"></video>
+                    </div>
+                    <div class="media-info">
+                        <div class="info-group">
+                            <label>文件名：</label>
+                            <span id="detailFileName"></span>
+                        </div>
+                        <div class="info-group">
+                            <label>分辨率：</label>
+                            <span id="detailResolution"></span>
+                        </div>
+                        <div class="info-group">
+                            <label>文件大小：</label>
+                            <span id="detailFileSize"></span>
+                        </div>
+                        <div class="info-group">
+                            <label>创建时间：</label>
+                            <span id="detailCreatedAt"></span>
+                        </div>
+                        <div class="info-group">
+                            <label>AI标签：</label>
+                            <div id="detailAITags" class="tag-container">
+                                <span class="no-tags">暂无标签</span>
+                            </div>
+                        </div>
+                        <div class="detail-actions">
+                            <button id="aiTagThisBtn" class="btn btn-primary">🏷️ AI打标</button>
+                            <button id="deleteThisBtn" class="btn btn-danger">🗑️ 删除</button>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <!-- Category Management Modal -->
+    <div id="categoryModal" class="modal">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h2 id="categoryModalTitle">新建类别</h2>
+                <button class="modal-close" data-modal="categoryModal">&times;</button>
+            </div>
+            <div class="modal-body">
+                <div class="form-group">
+                    <label>类别名称</label>
+                    <input type="text" id="categoryNameInput" placeholder="输入类别名称">
+                </div>
+                <div class="form-group">
+                    <label>描述</label>
+                    <textarea id="categoryDescInput" rows="3" placeholder="类别描述（可选）"></textarea>
+                </div>
+                <div class="form-group">
+                    <label>标识颜色</label>
+                    <input type="color" id="categoryColorInput" value="#3498db">
+                </div>
+            </div>
+            <div class="modal-footer">
+                <button class="btn btn-secondary" data-modal="categoryModal">取消</button>
+                <button id="saveCategoryBtn" class="btn btn-primary">保存</button>
+            </div>
+        </div>
+    </div>
+
+    <!-- File Input (hidden) -->
+    <input type="file" id="fileInput" multiple accept="image/*,video/*" style="display: none;">
+
+    <!-- Loading Overlay -->
+    <div id="loadingOverlay" class="loading-overlay" style="display: none;">
+        <div class="spinner"></div>
+        <p id="loadingText">处理中...</p>
+    </div>
+
+    <!-- Scripts -->
+    <script type="module" src="src/app.js"></script>
+</body>
+</html>

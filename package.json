@@ -1,0 +1,23 @@
+{
+  "name": "datasetmanager",
+  "version": "1.0.0",
+  "description": "Encrypted dataset management application for images and videos with AI tagging support",
+  "main": "index.html",
+  "scripts": {
+    "start": "npx http-server -p 8080 -c-1",
+    "dev": "npx http-server -p 8080 -c-1 -o"
+  },
+  "keywords": [
+    "dataset",
+    "encryption",
+    "ai-tagging",
+    "image-management",
+    "video-management"
+  ],
+  "author": "",
+  "license": "MIT",
+  "devDependencies": {
+    "http-server": "^14.1.1"
+  },
+  "dependencies": {}
+}

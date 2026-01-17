@@ -1,0 +1,19 @@
+{
+  "permissions": {
+    "allow": [
+      "Bash(*)",
+      "Read(*)",
+      "Write(*)",
+      "Edit(*)",
+      "MultiEdit(*)",
+      "Grep(*)",
+      "Glob(*)",
+      "TodoRead(*)",
+      "TodoWrite(*)",
+      "WebFetch(*)",
+      "mcp__*",
+      "Bash(npm install)",
+      "Bash(curl:*)"
+    ]
+  }
+}
